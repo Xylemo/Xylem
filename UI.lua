@@ -338,7 +338,7 @@ function UILibrary.Load(GUITitle)
 			CloseUI(Draggable, Open)
 
 			TweenService:Create(Draggable, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-				Size = UDim2.new(0.018, 0, 0.0044, 0)
+				Size = UDim2.new(0.018, 0, 0.0046, 0)
 			}):Play()
 		end
 	end)
@@ -1032,3 +1032,4 @@ function UILibrary.Load(GUITitle)
 	return PageLibrary
 end
 return UILibrary
+
