@@ -392,7 +392,7 @@ local function startFarming()
 	
 		HRP.Anchored = false
 		
-		flyTo(Vector3.new(173.26, Y_POS, pot.Position.Z))
+		flyTo(Vector3.new(173.26, Y_POS, pot.PotPlaceholder.Position.Z))
 		
 		HRP.Anchored = true
 		
