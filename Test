@@ -503,9 +503,7 @@ local function runRoute()
 			flyTo(wp)
 		end
 
-		HRP.Anchored = true
 		buyFarm(#FindPots())
-		HRP.Anchored = false
 		
 		for _, wp in ipairs(ToFarm) do
 			if not running then break end
@@ -614,4 +612,3 @@ UserInputService.InputBegan:Connect(function(input, gp)
 		end
 	end
 end)
-
