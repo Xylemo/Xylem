@@ -26,14 +26,13 @@ local ToFarm = {
 	Vector3.new(-220.83, Y_POS, 188.63),
 	Vector3.new(-221.41, Y_POS, 298.65),
 	Vector3.new(-94.18, Y_POS, 303.08),
-	Vector3.new(174.52, Y_POS, 438.21),
+	Vector3.new(172.26, Y_POS, 438.21),
 	Vector3.new(173.26, Y_POS, 533.32)
 }
 
 local ToSafe = {
 	Vector3.new(172.17, Y_POS, 459.82),
-	Vector3.new(120.68, Y_POS, 461.03),
-	Vector3.new(120.34, Y_POS, 464.07)
+	Vector3.new(120.68, Y_POS, 461.03)
 }
 
 local DIST_ARRIVE   = 2 
@@ -103,43 +102,6 @@ local function CallRemote(remote, ...)
 	end
 end
 
-local function spawnAndEnter()
-local playerGui = Player:FindFirstChild("PlayerGui")
-local PPS = game:GetService("ProximityPromptService")
-local Vehicles = workspace:FindFirstChild("Vehicles")
-local itemsGui = playerGui:FindFirstChild("Items")
-local holder = itemsGui:FindFirstChild("ItemsHolder")
-local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
-for _, child in ipairs(scrollFrame:GetChildren()) do
-    local itemName = child:FindFirstChild("ItemName")
-    if itemName and itemName:IsA("TextLabel") then
-        if itemName.Text == "BMX" then
-            print("Found BMX")
-            for i,v in getconnections(itemName.Parent.MouseButton1Click) do
-				v:Function()
-            end
-			
-			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
-				return false
-			else
-		    for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.MouseButton1Click) do
-				v:Function()
-		    end
-			
-			wait(0.1)
-			for _, d in ipairs(Vehicles:GetDescendants()) do
-				if d:IsA("ProximityPrompt") and d.Enabled and d.ObjectText == Player.Name .. "'s car" then
-					print(d.ObjectText)
-					d:InputHoldBegin()
-				end
-			end
-			end
-        end
-    end
-	end
-end
-
-
 local function walkTo(targetPos: Vector3, timeout: number?)
     timeout = timeout or 5
     local arrived = false
@@ -168,6 +130,56 @@ local function walkTo(targetPos: Vector3, timeout: number?)
 
     return arrived
 end
+
+
+local function spawnAndEnter()
+local playerGui = Player:FindFirstChild("PlayerGui")
+local PPS = game:GetService("ProximityPromptService")
+local Vehicles = workspace:FindFirstChild("Vehicles")
+local itemsGui = playerGui:FindFirstChild("Items")
+local holder = itemsGui:FindFirstChild("ItemsHolder")
+local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
+for _, child in ipairs(scrollFrame:GetChildren()) do
+    local itemName = child:FindFirstChild("ItemName")
+    if itemName and itemName:IsA("TextLabel") then
+        if itemName.Text == "BMX" then
+            print("Found BMX")
+			
+			local input = nil
+			
+            for i,v in getconnections(itemName.Parent.MouseButton1Click) do
+				v:Function()
+            end
+			
+			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
+				return false
+			else
+		    for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.MouseButton1Click) do
+				v:Function()
+		    end
+			
+			for _, d in ipairs(Vehicles:GetDescendants()) do
+				if d:IsA("ProximityPrompt") and d.Enabled and d.ObjectText == Player.Name .. "'s car" then
+					print(d.ObjectText)
+					input = d
+				end
+			end
+			
+			
+			walkTo(input.Parent.Parent.Position)
+			
+			wait(0.1)
+			
+			input:InputHoldBegin()
+
+			end
+        end
+    end
+	end
+end
+
+
+
 
 local function inVehicle()
 	local humanoid = Character:WaitForChild("Humanoid")
