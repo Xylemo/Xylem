@@ -415,6 +415,10 @@ local function startFarming()
 		local ok2, res2 = pcall(function()
 			return CallRemote(reSend, "add_to_pot", "seed", pot, seeds)
 		end)
+		
+		
+		
+		HRP.Anchored = false
 	end
 end
 
@@ -503,7 +507,9 @@ local function runRoute()
 			flyTo(wp)
 		end
 
+		HRP.Anchored = true
 		buyFarm(#FindPots())
+		HRP.Anchored = false
 		
 		for _, wp in ipairs(ToFarm) do
 			if not running then break end
