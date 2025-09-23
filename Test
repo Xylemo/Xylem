@@ -165,12 +165,11 @@ for _, child in ipairs(scrollFrame:GetChildren()) do
 				end
 			end
 			
-			
+			if input then
 			walkTo(input.Parent.Parent.Position)
-			
 			wait(0.1)
-			
 			input:InputHoldBegin()
+			end
 
 			end
         end
