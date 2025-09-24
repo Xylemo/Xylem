@@ -280,6 +280,7 @@ local function SetCharacter(char)
 				
 				if (HRP.Position - targetPos).Magnitude <= maxDistance then
 					print("Made It")
+					task.wait(300)
 					for _, wp in ipairs(RespawnOne) do
 						flyTo(wp)
 					end
