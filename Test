@@ -150,61 +150,39 @@ end
 
 
 local function spawnAndEnter()
-local playerGui = Player:FindFirstChild("PlayerGui")
-local PPS = game:GetService("ProximityPromptService")
-local Vehicles = workspace:FindFirstChild("Vehicles")
-local itemsGui = playerGui:FindFirstChild("Items")
-local holder = itemsGui:FindFirstChild("ItemsHolder")
-local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
-for _, child in ipairs(scrollFrame:GetChildren()) do
-    local itemName = child:FindFirstChild("ItemName")
-    if itemName and itemName:IsA("TextLabel") then
-        if itemName.Text == "BMX" then
-            print("Found BMX")
-			
-			local input = nil
-			
-
-			--[[
-            for i,v in getconnections(itemName.Parent.MouseButton1Click) do
-				v:Function()
-            end
-			--]]
-			
-			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
-				return false
-			else
-			
-			--[[
-		    for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.MouseButton1Click) do
-				v:Function()
-		    end
-			--]]
-	
-			
-			local vehicle = findGuidByItemName("BMX")
-			
-			CallRemote(rfGet, "toggle_equip_item", vehicle)
-			
-			for _, d in ipairs(Vehicles:GetDescendants()) do
-				if d:IsA("ProximityPrompt") and d.Enabled and d.ObjectText == Player.Name .. "'s car" then
-					print(d.ObjectText)
-					input = d
+	local playerGui = Player:FindFirstChild("PlayerGui")
+	local PPS = game:GetService("ProximityPromptService")
+	local Vehicles = workspace:FindFirstChild("Vehicles")
+	local itemsGui = playerGui:FindFirstChild("Items")
+	local holder = itemsGui:FindFirstChild("ItemsHolder")
+	local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
+	for _, child in ipairs(scrollFrame:GetChildren()) do
+		local itemName = child:FindFirstChild("ItemName")
+		if itemName and itemName:IsA("TextLabel") then
+			if itemName.Text == "BMX" then
+				print("Found BMX")
+				local input = nil
+				if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
+					return false
+				end
+				local vehicle = findGuidByItemName("BMX")
+				CallRemote(rfGet, "toggle_equip_item", vehicle)
+				for _, d in ipairs(Vehicles:GetDescendants()) do
+					if d:IsA("ProximityPrompt") and d.Enabled and d.ObjectText == Player.Name .. "'s car" then
+						print(d.ObjectText)
+						input = d
+					end
+				end
+				
+				if input then
+					walkTo(input.Parent.Parent.Position)
+					wait(0.1)
+					input:InputHoldBegin()
 				end
 			end
-			
-			if input then
-			walkTo(input.Parent.Parent.Position)
-			wait(0.1)
-			input:InputHoldBegin()
-			end
-
-			end
-        end
-    end
+		end
 	end
 end
-
 
 
 
@@ -377,38 +355,6 @@ local function equipTool(toolName)
 	end
 end
 
-local function equipItem(Item)
-	local playerGui = Player:FindFirstChild("PlayerGui")
-	
-	local itemsGui = playerGui:FindFirstChild("Items")
-	local holder = itemsGui:FindFirstChild("ItemsHolder")
-	local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
-	
-	local Character = Player.Character or Player.CharacterAdded:Wait()
-
-	local tool = Character:FindFirstChild(Item)
-	
-	if tool and tool:IsA("Tool") then
-		print("Tool found in backpack:", toolName)
-	else
-	
-	for _, child in ipairs(scrollFrame:GetChildren()) do
-		local itemName = child:FindFirstChild("ItemName")
-		if itemName and itemName:IsA("TextLabel") then
-			if itemName.Text == Item then
-					for i,v in getconnections(itemName.Parent.MouseButton1Click) do
-						v:Function()
-					end
-					for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.MouseButton1Click) do
-						v:Function()
-				end
-			end
-		end
-	end
-	
-	end
-end
-
 
 local function startFarming()
 	local pots = FindPots()
@@ -427,21 +373,20 @@ local function startFarming()
 		end)
 	
 		print(pot)
-		equipItem("RegularSoil")
+		
+		local regularSoil = findGuidByItemName("RegularSoil")
+		CallRemote(rfGet, "toggle_equip_item", regularSoil)
+		
 		equipTool("RegularSoil")
 		local soil = Player.Character:FindFirstChild("RegularSoil")
-		local ok1, res1 = pcall(function()
-			return CallRemote(reSend, "add_to_pot", "soil", pot, soil)
-		end)
+		CallRemote(reSend, "add_to_pot", "soil", pot, soil)
 		
-		equipItem("SunflowerSeeds")
+		local sunflowerSeeds = findGuidByItemName("SunflowerSeeds")
+		CallRemote(rfGet, "toggle_equip_item", sunflowerSeeds)
+		
 		equipTool("SunflowerSeeds")
 		local seeds = Player.Character:FindFirstChild("SunflowerSeeds")
-		local ok2, res2 = pcall(function()
-			return CallRemote(reSend, "add_to_pot", "seed", pot, seeds)
-		end)
-		
-		
+		CallRemote(reSend, "add_to_pot", "seed", pot, seeds)
 		
 		HRP.Anchored = false
 	end
@@ -468,35 +413,23 @@ end
 
 
 local function Despawn()
-local playerGui = Player:FindFirstChild("PlayerGui")
-local PPS = game:GetService("ProximityPromptService")
-local Vehicles = workspace:FindFirstChild("Vehicles")
-local itemsGui = playerGui:FindFirstChild("Items")
-local holder = itemsGui:FindFirstChild("ItemsHolder")
-local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
-for _, child in ipairs(scrollFrame:GetChildren()) do
-    local itemName = child:FindFirstChild("ItemName")
-    if itemName and itemName:IsA("TextLabel") then
-        if itemName.Text == "BMX" then
-            print("Found BMX")
-            for i,v in getconnections(itemName.Parent.MouseButton1Click) do
-				v:Function()
-            end
-			
-			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
-				for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.MouseButton1Click) do
-					v:Function()
-				end
-			else
-				for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.ItemInfoCloseButton.MouseButton1Click) do
-					v:Function()
-				end
-				for i,v in getconnections(playerGui.Items.ItemsHolder.ItemsCloseButton.MouseButton1Click) do
-					v:Function()
+	local playerGui = Player:FindFirstChild("PlayerGui")
+	local PPS = game:GetService("ProximityPromptService")
+	local Vehicles = workspace:FindFirstChild("Vehicles")
+	local itemsGui = playerGui:FindFirstChild("Items")
+	local holder = itemsGui:FindFirstChild("ItemsHolder")
+	local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
+	for _, child in ipairs(scrollFrame:GetChildren()) do
+		local itemName = child:FindFirstChild("ItemName")
+		if itemName and itemName:IsA("TextLabel") then
+			if itemName.Text == "BMX" then
+				print("Found BMX")
+				if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
+					local vehicle = findGuidByItemName("BMX")
+					CallRemote(rfGet, "toggle_equip_item", vehicle)
 				end
 			end
-        end
-    end
+		end
 	end
 end
 
@@ -546,10 +479,6 @@ local function runRoute()
 		for _, wp in ipairs(ToSafe) do
 			if not running then break end
 			flyTo(wp)
-		end
-		
-		for i,v in getconnections(playerGui.Items.ItemsHolder.ItemsCloseButton.MouseButton1Click) do
-			v:Function()
 		end
 		
 		HRP.Anchored = true
@@ -634,7 +563,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.G then
+	if input.KeyCode == Enum.KeyCode.H then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
