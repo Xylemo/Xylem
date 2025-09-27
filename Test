@@ -104,24 +104,21 @@ end
 
 
 local function safeClick(button)
-	if not button then return end
-	if getconnections then
-		for _, v in ipairs(getconnections(button.MouseButton1Click)) do
-			if v.Function then
-				v:Function()
-			elseif v.Function then
-				v.Function()
-			end
-		end
-	else
-		if button.Activate then
-			button:Activate()
-		else
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, button, 1)
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, button, 1)
-		end
-	end
+    if not button then return end
+    if firesignal then
+        -- fires the signal directly
+        if button.MouseButton1Click then
+            firesignal(button.MouseButton1Click, true)
+        elseif button.Activated then
+            firesignal(button.Activated, true)
+        end
+    elseif button.Activate then
+        button:Activate()
+    else
+        warn("No valid click method for", button.Name)
+    end
 end
+
 
 
 local function walkTo(targetPos: Vector3, timeout: number?)
