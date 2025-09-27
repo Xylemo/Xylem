@@ -164,20 +164,23 @@ for _, child in ipairs(scrollFrame:GetChildren()) do
 			
 			local input = nil
 			
+
 			--[[
-			
             for i,v in getconnections(itemName.Parent.MouseButton1Click) do
 				v:Function()
             end
+			--]]
 			
 			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
 				return false
 			else
+			
+			--[[
 		    for i,v in getconnections(playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.MouseButton1Click) do
 				v:Function()
 		    end
-			
 			--]]
+	
 			
 			local vehicle = findGuidByItemName("BMX")
 			
@@ -631,7 +634,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.H then
+	if input.KeyCode == Enum.KeyCode.G then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
