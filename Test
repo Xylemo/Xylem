@@ -377,21 +377,25 @@ local function startFarming()
 		local Character = Player.Character or Player.CharacterAdded:Wait()
 		
 		
-		if (not backpack:FindFirstChild("RegularSoil")) then
+		if (not Player.Character:FindFirstChild("RegularSoil") and not backpack:FindFirstChild("RegularSoil")) then
 			local regularSoil = findGuidByItemName("RegularSoil")
 			CallRemote(rfGet, "toggle_equip_item", regularSoil)
 			print("Need Soil")
 		end
 		
+		wait(0.1)
+		
 		equipTool("RegularSoil")
 		local soil = Player.Character:FindFirstChild("RegularSoil")
 		CallRemote(reSend, "add_to_pot", "soil", pot, soil)
 		
-		if (not backpack:FindFirstChild("SunflowerSeeds")) then
+		if (not Player.Character:FindFirstChild("SunflowerSeeds") and not backpack:FindFirstChild("SunflowerSeeds")) then
 			local sunflowerSeeds = findGuidByItemName("SunflowerSeeds")
 			CallRemote(rfGet, "toggle_equip_item", sunflowerSeeds)
 			print("Need Seed")
 		end
+		
+		wait(0.1)
 		
 		equipTool("SunflowerSeeds")
 		local seeds = Player.Character:FindFirstChild("SunflowerSeeds")
@@ -572,7 +576,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.U then
+	if input.KeyCode == Enum.KeyCode.B then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
