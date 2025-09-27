@@ -35,7 +35,7 @@ local ToSafe = {
 	Vector3.new(120.68, Y_POS, 461.03)
 }
 
-local DIST_ARRIVE   = 2 
+local DIST_ARRIVE   = 0.5
 local FLIGHT_SPEED  = 50
 
 -- ==================================================
@@ -383,7 +383,7 @@ local function startFarming()
 			print("Need Soil")
 		end
 		
-		wait(0.1)
+		wait(0.01)
 		
 		equipTool("RegularSoil")
 		local soil = Player.Character:FindFirstChild("RegularSoil")
@@ -395,7 +395,7 @@ local function startFarming()
 			print("Need Seed")
 		end
 		
-		wait(0.1)
+		wait(0.01)
 		
 		equipTool("SunflowerSeeds")
 		local seeds = Player.Character:FindFirstChild("SunflowerSeeds")
@@ -494,15 +494,17 @@ local function runRoute()
 			flyTo(wp)
 		end
 		
-		HRP.Anchored = true
-		
-		local ok1, res1 = pcall(function()
-			return CallRemote(rfGet, "exit_seat")
-		end)
-		
+		local seat = HRP.SeatPart
+		if seat and seat:IsA("VehicleSeat") and seat.Parent.PrimaryPart then
+			seat.Parent.PrimaryPart.Velocity = Vector3.zero
+			seat.Parent.PrimaryPart.RotVelocity = Vector3.zero
+		else
+			print("No sir")
+		end
+
 		task.wait(0.1)
 		
-		HRP.Anchored = false
+		CallRemote(rfGet, "exit_seat")
 		
 		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
 		
@@ -576,7 +578,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.N then
+	if input.KeyCode == Enum.KeyCode.G then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
