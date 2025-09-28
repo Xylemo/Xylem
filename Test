@@ -148,6 +148,16 @@ local function walkTo(targetPos: Vector3, timeout: number?)
     return arrived
 end
 
+local function inVehicle()
+	local humanoid = Character:WaitForChild("Humanoid")
+	for _, d in ipairs(Vehicles:GetDescendants()) do
+		if d:IsA("VehicleSeat") and d.Occupant == humanoid then
+		return true
+		end
+	end
+	return false
+end
+
 
 local function spawnAndEnter()
 	local playerGui = Player:FindFirstChild("PlayerGui")
@@ -174,7 +184,7 @@ local function spawnAndEnter()
 					end
 				end
 				
-				if input then
+				if input and not inVehicle() then
 					walkTo(input.Parent.Parent.Position)
 					wait(0.1)
 					input:InputHoldBegin()
@@ -186,15 +196,7 @@ end
 
 
 
-local function inVehicle()
-	local humanoid = Character:WaitForChild("Humanoid")
-	for _, d in ipairs(Vehicles:GetDescendants()) do
-		if d:IsA("VehicleSeat") and d.Occupant == humanoid then
-		return true
-		end
-	end
-	return false
-end
+
 
 
 
@@ -573,7 +575,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.H then
+	if input.KeyCode == Enum.KeyCode.G then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
