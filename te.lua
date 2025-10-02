@@ -3,7 +3,6 @@
 -- ===================== CONFIG =====================
 local Y_POS = 257
 
-
 local RespawnOne = {
 	Vector3.new(-449.31, Y_POS, 290.23),
 	Vector3.new(-262.46, Y_POS, 299.86),
@@ -39,8 +38,7 @@ local DIST_ARRIVE   = 0.5
 local FLIGHT_SPEED  = 50
 
 -- ==================================================
-running = false
-
+local running = false
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -52,10 +50,11 @@ local Vehicles = workspace:FindFirstChild("Vehicles")
 local Player = Players.LocalPlayer
 local Character, HRP, Humanoid
 local diedMonitor
+local potWatcher
 local lookingForRespawn = false
 local cancelFlight = false
 local runRoute
-local debugMode = false 
+local debugMode = false
 
 -- Remotes
 local rfGet = ReplicatedStorage:FindFirstChild("Get", true)
@@ -65,7 +64,7 @@ local reSend = (ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorag
 if not (rfGet and rfGet:IsA("RemoteFunction")) then warn("RemoteFunction 'Get' not found."); return end
 if not (reSend and reSend:IsA("RemoteEvent")) then warn("RemoteEvent 'Send' not found."); return end
 
--- Optional counter table (if your env provides it); otherwise we just call directly
+-- Optional counter table
 local CounterTable = (function()
 	for _, Obj in getgc and getgc(true) or {} do
 		if typeof(Obj) == "table" and rawget(Obj, "event") and rawget(Obj, "func") then
@@ -74,7 +73,7 @@ local CounterTable = (function()
 	end
 end)()
 
--- wrapper that uses CounterTable and RETURNS results for RemoteFunction
+-- wrapper
 local function CallRemote(remote, ...)
 	if not remote or typeof(remote) ~= "Instance" then return nil end
 
@@ -95,98 +94,58 @@ local function CallRemote(remote, ...)
 	end
 end
 
-local function findGuidByItemName(string)
+local function findGuidByItemName(name)
 	local pg = Player:FindFirstChild("PlayerGui")
 	local inventoryUI = pg:FindFirstChild("Items"):FindFirstChild("ItemsHolder"):FindFirstChild("ItemsScrollingFrame")
-
 	for _, child in ipairs(inventoryUI:GetChildren()) do
-		-- only consider "{...}"-style names
-			local itemName = child:FindFirstChild("ItemName")
-			if itemName and itemName:IsA("TextLabel") then
-				if itemName.Text == string then
-					return child.Name -- this is the GUID string "{...}"
-				end
-			end
+		local itemName = child:FindFirstChild("ItemName")
+		if itemName and itemName:IsA("TextLabel") and itemName.Text == name then
+			return child.Name
+		end
 	end
 	return nil
 end
 
-
 local function walkTo(targetPos: Vector3, timeout: number?)
-    timeout = timeout or 5
-    local arrived = false
-    local humanoid = Character:WaitForChild("Humanoid")
-    if not humanoid then return false end
-    if HRP then HRP.Anchored = false end
+	timeout = timeout or 5
+	local arrived = false
+	local humanoid = Character:WaitForChild("Humanoid")
+	if not humanoid then return false end
+	if HRP then HRP.Anchored = false end
 
-    humanoid:MoveTo(targetPos)
+	humanoid:MoveTo(targetPos)
 
-    local conn
-    conn = humanoid.MoveToFinished:Connect(function(ok)
-        arrived = ok -- true if humanoid reached target, false if failed
-    end)
+	local conn
+	conn = humanoid.MoveToFinished:Connect(function(ok)
+		arrived = ok
+	end)
 
-    local start = tick()
-    while arrived == false and tick() - start < timeout do
-        task.wait()
-    end
+	local start = tick()
+	while not arrived and tick() - start < timeout do
+		task.wait()
+	end
 
-    if conn then conn:Disconnect() end
+	if conn then conn:Disconnect() end
+	if not arrived then
+		humanoid:Move(Vector3.zero)
+		warn(("walkTo timed out after %ds at position %s"):format(timeout, tostring(targetPos)))
+	end
 
-    if not arrived then
-        humanoid:Move(Vector3.zero)
-        warn(("walkTo timed out after %ds at position %s"):format(timeout, tostring(targetPos)))
-    end
-
-    return arrived
+	return arrived
 end
 
 local function inVehicle()
 	local humanoid = Character:WaitForChild("Humanoid")
 	for _, d in ipairs(Vehicles:GetDescendants()) do
 		if d:IsA("VehicleSeat") and d.Occupant == humanoid then
-		return true
+			return true
 		end
 	end
 	return false
 end
 
-
-local function spawnAndEnter()
-	local playerGui = Player:FindFirstChild("PlayerGui")
-	local PPS = game:GetService("ProximityPromptService")
-	local Vehicles = workspace:FindFirstChild("Vehicles")
-	local itemsGui = playerGui:FindFirstChild("Items")
-	local holder = itemsGui:FindFirstChild("ItemsHolder")
-	local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
-	for _, child in ipairs(scrollFrame:GetChildren()) do
-		local itemName = child:FindFirstChild("ItemName")
-		if itemName and itemName:IsA("TextLabel") then
-			if itemName.Text == "BMX" then
-				print("Found BMX")
-				local input = nil
-				
-				lastVehicleSpawn = tick()
-				local vehicle = findGuidByItemName("BMX")
-				CallRemote(rfGet, "toggle_equip_item", vehicle)
-				for _, d in ipairs(Vehicles:GetDescendants()) do
-					if d:IsA("ProximityPrompt") and d.Enabled and d.ObjectText == Player.Name .. "'s car" then
-						print(d.ObjectText)
-						input = d
-					end
-				end
-				
-				if input and not inVehicle() then
-					walkTo(input.Parent.Parent.Position)
-					wait(0.1)
-					input:InputHoldBegin()
-				end
-			end
-		end
-	end
-end
-
-local function waitForVehicle()
+-- === Cooldown check ===
+local function waitForVehicle(blocking)
 	local nextSpawn = Player:GetAttribute("SpawnVehicleNext")
 	if not nextSpawn then
 		print("⚠️ No cooldown attribute found.")
@@ -197,45 +156,52 @@ local function waitForVehicle()
 	local remaining = nextSpawn - now
 
 	if remaining > 0 then
-		print(("⏳ Waiting %d seconds until you can spawn again..."):format(remaining))
-		task.wait(remaining)
-		print("✅ Cooldown finished, you can spawn now.")
+		print(("⏳ Vehicle cooldown: %d seconds left"):format(remaining))
+		if blocking then
+			task.wait(remaining)
+			print("✅ Cooldown finished, you can spawn now.")
+		end
 	else
 		print("✅ Already off cooldown, you can spawn now.")
 	end
 end
 
+local function spawnAndEnter()
+	local vehicle = findGuidByItemName("BMX")
+	if not vehicle then return end
 
+	CallRemote(rfGet, "toggle_equip_item", vehicle)
 
+	local input
+	for _, d in ipairs(Vehicles:GetDescendants()) do
+		if d:IsA("ProximityPrompt") and d.Enabled and d.ObjectText == Player.Name .. "'s car" then
+			input = d
+			break
+		end
+	end
+
+	if input and not inVehicle() then
+		walkTo(input.Parent.Parent.Position)
+		task.wait(0.1)
+		input:InputHoldBegin()
+	end
+end
 
 local function flyTo(targetPos: Vector3)
 	local arrived = false
-	cancelFlight = false  -- reset on every call
+	cancelFlight = false
 
-	-- Keep attempting to spawn and enter a vehicle until successful
-	while not inVehicle() and not cancelFlight do
-		print("Not in vehicle, trying to spawn and enter...")
-		spawnAndEnter()
-		task.wait(0.1)
-	end
-
-	-- Exit early if cancelled before entering vehicle
-	if cancelFlight then return end
-
-	-- Start flying
 	local conn
 	conn = RunService.Heartbeat:Connect(function(dt)
 		if not HRP or cancelFlight then
 			if conn then conn:Disconnect() end
-			arrived = false
 			return
 		end
 
 		local cur = HRP.Position
 		local d = (targetPos - cur).Magnitude
 		if d <= DIST_ARRIVE then
-			HRP.Velocity = Vector3.zero
-			HRP.RotVelocity = Vector3.zero
+			HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 			if conn then conn:Disconnect() end
 			arrived = true
 			return
@@ -247,90 +213,49 @@ local function flyTo(targetPos: Vector3)
 		HRP.CFrame = HRP.CFrame:Lerp(CFrame.lookAt(cur, cur + dir), math.clamp(dt * 5, 0, 1))
 	end)
 
-	-- Wait until flight finishes or is cancelled
 	while not arrived and not cancelFlight do
 		task.wait()
 	end
 
-	-- Stop movement when interrupted
-	if cancelFlight then
-		if HRP then
-			HRP.Velocity = Vector3.zero
-			HRP.RotVelocity = Vector3.zero
-		end
-	end
+	if cancelFlight and conn then conn:Disconnect() end
+	HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 end
 
-
-
-
+-- === Respawn logic with Humanoid.Died ===
 local function SetCharacter(char)
 	Character = char
 	HRP = char:WaitForChild("HumanoidRootPart")
 	Humanoid = char:WaitForChild("Humanoid")
 
-	if diedMonitor then
-		diedMonitor:Disconnect()
-	end
+	if diedMonitor then diedMonitor:Disconnect() end
+	diedMonitor = Humanoid.Died:Connect(function()
+		print("💀 Player died, waiting for respawn...")
+		cancelFlight = true
+		running = false
+		task.wait(7)
+		CallRemote(ReplicatedStorage.Remotes.Send, "death_screen_request_respawn")
 
-	diedMonitor = RunService.Heartbeat:Connect(function()
-		if not lookingForRespawn and Humanoid and Humanoid.Health <= 0 then
-			print("Player health is 0. Pausing route.")
-			lookingForRespawn = true
-			cancelFlight = true
-			running = false
-	
-			task.wait(7)
-			CallRemote(ReplicatedStorage.Remotes.Send, "death_screen_request_respawn")
-	
-			task.spawn(function()
-				repeat task.wait() until Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0
-				wait(1)
-				SetCharacter(Player.Character)
-				print("✅ Respawn detected. Restarting route.")
-				wait(0.1)
-				--Vector3.new(-449.31, Y_POS, 290.23)
-				
-				local targetPos = Vector3.new(-449.31, Y_POS, 290.23)
-				local maxDistance = 15 -- acceptable distance in studs
-				
-				if (HRP.Position - targetPos).Magnitude <= maxDistance then
-					print("Made It")
-					
-					waitForVehicle()
-					
-					for _, wp in ipairs(RespawnOne) do
-						flyTo(wp)
-					end
-					
-					HRP.Anchored = true
-					running = true
-					lookingForRespawn = false
-					
-					local ok1, res1 = pcall(function()
-						return CallRemote(rfGet, "exit_seat")
-					end)
-					HRP.Anchored = false
-					VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
-					walkTo(Vector3.new(120.31, Y_POS, 481.83))
-					VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
-					
-					runRoute()
-				else
-				CallRemote(ReplicatedStorage.Remotes.Send, "request_respawn")
-				end
-				lookingForRespawn = false
-			end)
-	
-			diedMonitor:Disconnect()
-		end
+		task.spawn(function()
+			repeat task.wait() until Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0
+			task.wait(1)
+			SetCharacter(Player.Character)
+			print("✅ Respawn detected, restarting route.")
+
+			waitForVehicle(true)
+
+			for _, wp in ipairs(RespawnOne) do
+				flyTo(wp)
+			end
+
+			runRoute()
+		end)
 	end)
 end
 
 if Player.Character then SetCharacter(Player.Character) end
 Player.CharacterAdded:Connect(SetCharacter)
 
-
+-- === Farming helpers ===
 local function FindPots()
 	local housing = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("PrestigeDealerAndHousing")
 	local house
@@ -346,12 +271,11 @@ local function FindPots()
 	for _, obj in ipairs(farming:GetDescendants()) do
 		if obj.Name == "Pot" and #obj:GetChildren() > 0 then
 			obj.Parent:FindFirstChild("PotPlaceholder"):FindFirstChild("BillboardGui").MaxDistance = 1000
-			table.insert(pots, obj.Parent) 
+			table.insert(pots, obj.Parent)
 		end
 	end
 	return pots
 end
-
 
 local function equipTool(toolName)
 	local backpack = Player:WaitForChild("Backpack")
@@ -366,51 +290,37 @@ local function equipTool(toolName)
 	end
 end
 
-
 local function startFarming()
 	local pots = FindPots()
-	for i, pot in ipairs(pots) do
-
+	for _, pot in ipairs(pots) do
 		HRP.Anchored = false
-		
 		flyTo(Vector3.new(173.26, Y_POS, pot.PotPlaceholder.Position.Z))
-		
 		HRP.Anchored = true
-		
-	
-		local ok3, res3 = pcall(function()
-			return CallRemote(reSend, "harvest", pot)
-		end)
-	
-		print(pot)
-		local backpack = Player:WaitForChild("Backpack")
-		local Character = Player.Character or Player.CharacterAdded:Wait()
-		
-		
-		if (not Player.Character:FindFirstChild("RegularSoil") and not backpack:FindFirstChild("RegularSoil")) then
+
+		pcall(function() return CallRemote(reSend, "harvest", pot) end)
+
+		if (not Player.Character:FindFirstChild("RegularSoil") and not Player.Backpack:FindFirstChild("RegularSoil")) then
 			local regularSoil = findGuidByItemName("RegularSoil")
 			CallRemote(rfGet, "toggle_equip_item", regularSoil)
-			print("Need Soil")
 		end
-		
-		wait(0.01)
-		
+
+		task.wait(0.01)
+
 		equipTool("RegularSoil")
 		local soil = Player.Character:FindFirstChild("RegularSoil")
 		CallRemote(reSend, "add_to_pot", "soil", pot, soil)
-		
-		if (not Player.Character:FindFirstChild("SunflowerSeeds") and not backpack:FindFirstChild("SunflowerSeeds")) then
+
+		if (not Player.Character:FindFirstChild("SunflowerSeeds") and not Player.Backpack:FindFirstChild("SunflowerSeeds")) then
 			local sunflowerSeeds = findGuidByItemName("SunflowerSeeds")
 			CallRemote(rfGet, "toggle_equip_item", sunflowerSeeds)
-			print("Need Seed")
 		end
-		
-		wait(0.01)
-		
+
+		task.wait(0.01)
+
 		equipTool("SunflowerSeeds")
 		local seeds = Player.Character:FindFirstChild("SunflowerSeeds")
 		CallRemote(reSend, "add_to_pot", "seed", pot, seeds)
-		
+
 		HRP.Anchored = false
 	end
 end
@@ -421,7 +331,8 @@ local function buyFarm(amount)
 		local ok1, res1 = pcall(function()
 			return CallRemote(rfGet, "purchase_consumable", Hardware, "SunflowerSeeds")
 		end)
-		if not ok2 then warn("Failed to buy soil:", res2) end
+		if not ok1 then warn("Failed to buy seeds:", res1) end
+
 		local ok2, res2 = pcall(function()
 			return CallRemote(rfGet, "purchase_consumable", Hardware, "RegularSoil")
 		end)
@@ -429,104 +340,66 @@ local function buyFarm(amount)
 	end
 end
 
-
-
-
-
-
-
 local function Despawn()
 	local playerGui = Player:FindFirstChild("PlayerGui")
-	local PPS = game:GetService("ProximityPromptService")
-	local Vehicles = workspace:FindFirstChild("Vehicles")
 	local itemsGui = playerGui:FindFirstChild("Items")
 	local holder = itemsGui:FindFirstChild("ItemsHolder")
 	local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
 	for _, child in ipairs(scrollFrame:GetChildren()) do
 		local itemName = child:FindFirstChild("ItemName")
-		if itemName and itemName:IsA("TextLabel") then
-			if itemName.Text == "BMX" then
-				print("Found BMX")
-				if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
-					local vehicle = findGuidByItemName("BMX")
-					CallRemote(rfGet, "toggle_equip_item", vehicle)
-				end
+		if itemName and itemName:IsA("TextLabel") and itemName.Text == "BMX" then
+			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
+				local vehicle = findGuidByItemName("BMX")
+				CallRemote(rfGet, "toggle_equip_item", vehicle)
 			end
 		end
 	end
 end
 
-local function guardedFly(where)
-	if inVehicle() then
-		for _, wp in ipairs(where) do
-			if not running then break end
-			flyTo(wp)
-		end
-	else
-		warn("Not in vehicle")
-	end
-end
-
-
-
-
-
-
+-- === Route ===
 runRoute = function()
-		local playerGui = Player:FindFirstChild("PlayerGui")
+	waitForVehicle(true)
 
-		waitForVehicle()
+	Despawn()
+	task.wait(0.1)
+	VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+	walkTo(Vector3.new(120.22, Y_POS, 478.11))
+	walkTo(Vector3.new(114.64, Y_POS, 450.22))
+	VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
 
-		Despawn()
-		task.wait(0.1)
-		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
-		walkTo(Vector3.new(120.22, Y_POS, 478.11))
-		walkTo(Vector3.new(114.64, Y_POS, 450.22))
-		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+	for _, wp in ipairs(ToBuy) do
+		if not running then break end
+		flyTo(wp)
+	end
 
+	HRP.Anchored = true
+	if not debugMode then buyFarm(#FindPots()) end
+	HRP.Anchored = false
 
-		for _, wp in ipairs(ToBuy) do
-			if not running then break end
-			flyTo(wp)
-		end
+	for _, wp in ipairs(ToFarm) do
+		if not running then break end
+		flyTo(wp)
+	end
 
-		HRP.Anchored = true
-		
-		if not debugMode then
-		buyFarm(#FindPots())
-		end
-		
-		HRP.Anchored = false
-		
-		for _, wp in ipairs(ToFarm) do
-			if not running then break end
-			flyTo(wp)
-		end
+	if not debugMode then startFarming() end
 
-		if not debugMode then
-		startFarming()
-		end
+	for _, wp in ipairs(ToSafe) do
+		if not running then break end
+		flyTo(wp)
+	end
 
-		for _, wp in ipairs(ToSafe) do
-			if not running then break end
-			flyTo(wp)
-		end
-		
-		local lastSafe = ToSafe[#ToSafe]
-		flyTo(lastSafe)
-		
-		task.wait(0.1)
-		
-		CallRemote(rfGet, "exit_seat")
-		
-		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
-		
-		walkTo(Vector3.new(120.31, Y_POS, 481.83))
-		
-		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+	local lastSafe = ToSafe[#ToSafe]
+	flyTo(lastSafe)
+
+	task.wait(0.1)
+	CallRemote(rfGet, "exit_seat")
+
+	VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+	walkTo(Vector3.new(120.31, Y_POS, 481.83))
+	VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
 end
 
-
+-- === Pot watcher ===
 local function watchPotForDone()
 	local housing = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("PrestigeDealerAndHousing")
 	local house
@@ -535,60 +408,35 @@ local function watchPotForDone()
 			house = obj.Parent.Parent
 		end
 	end
-	if not house then
-		warn("No house found for Player")
-		return
-	end
-
+	if not house then return end
 	local farming = house:FindFirstChild("FarmingPots")
-	if not farming then
-		warn("No FarmingPots found in house")
-		return
-	end
+	if not farming then return end
 
-	-- Find one valid pot (has children)
 	local targetPot
 	for _, obj in ipairs(farming:GetDescendants()) do
 		if obj.Name == "Pot" and #obj:GetChildren() > 0 then
 			targetPot = obj
-			break -- only use the first one we find
+			break
 		end
 	end
+	if not targetPot then return end
 
-	if not targetPot then
-		warn("No filled pots found to watch")
-		return
-	end
-
-	-- Navigate down to its TextLabel
 	local gui = targetPot.Parent:FindFirstChild("PotPlaceholder"):FindFirstChild("BillboardGui")
 	if not gui then return end
 	local label = gui:FindFirstChild("TextLabel")
 	if not label or not label:IsA("TextLabel") then return end
 
-	if label.Text == "Done" and running then
-		task.spawn(runRoute)
-	end
-
-
-if potWatcher then
-	potWatcher:Disconnect()
-	potWatcher = nil
-end
-
-potWatcher = label:GetPropertyChangedSignal("Text"):Connect(function()
-	if label.Text == "Done" and running then
-		print("Pot finished growing — starting route")
-		task.spawn(runRoute)
-	end
-end)
-
+	if potWatcher then potWatcher:Disconnect() end
+	potWatcher = label:GetPropertyChangedSignal("Text"):Connect(function()
+		if label.Text == "Done" and running then
+			print("Pot finished growing — starting route")
+			task.spawn(runRoute)
+		end
+	end)
 	print("Now watching a pot's TextLabel for 'Done'")
 end
 
-
-
-
+-- === Keybind ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
 	if input.KeyCode == Enum.KeyCode.G then
