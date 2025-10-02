@@ -154,6 +154,7 @@ local function waitForVehicle()
 	local remaining = nextSpawn - now
 
 	if remaining > 0 then
+		print(("⏳ Waiting %d seconds until you can spawn again..."):format(remaining))
 		task.wait(remaining)
 		print("✅ Cooldown finished, you can spawn now.")
 	else
@@ -229,28 +230,55 @@ local function SetCharacter(char)
 	HRP = char:WaitForChild("HumanoidRootPart")
 	Humanoid = char:WaitForChild("Humanoid")
 
-	if diedMonitor then diedMonitor:Disconnect() end
-	diedMonitor = Humanoid.Died:Connect(function()
-		print("💀 Player died, waiting for respawn...")
-		cancelFlight = true
-		running = false
-		task.wait(7)
-		CallRemote(ReplicatedStorage.Remotes.Send, "death_screen_request_respawn")
+	if diedMonitor then
+		diedMonitor:Disconnect()
+	end
 
-		task.spawn(function()
-			repeat task.wait() until Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0
-			task.wait(1)
-			SetCharacter(Player.Character)
-			print("✅ Respawn detected, restarting route.")
-
-			waitForVehicle()
-
-			for _, wp in ipairs(RespawnOne) do
-				flyTo(wp)
-			end
-
-			runRoute()
-		end)
+	diedMonitor = RunService.Heartbeat:Connect(function()
+		if not lookingForRespawn and Humanoid and Humanoid.Health <= 0 then
+			print("Player health is 0. Pausing route.")
+			lookingForRespawn = true
+			cancelFlight = true
+			running = false
+	
+			task.wait(7)
+			CallRemote(ReplicatedStorage.Remotes.Send, "death_screen_request_respawn")
+	
+			task.spawn(function()
+				repeat task.wait() until Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0
+				wait(1)
+				SetCharacter(Player.Character)
+				print("✅ Respawn detected. Restarting route.")
+				wait(0.1)
+				--Vector3.new(-449.31, Y_POS, 290.23)
+				
+				local targetPos = Vector3.new(-449.31, Y_POS, 290.23)
+				local maxDistance = 15 -- acceptable distance in studs
+				
+				if (HRP.Position - targetPos).Magnitude <= maxDistance then
+					print("Made It")
+					waitForVehicle()
+					for _, wp in ipairs(RespawnOne) do
+						flyTo(wp)
+					end
+					HRP.Anchored = true
+					running = true
+					lookingForRespawn = false
+					local ok1, res1 = pcall(function()
+						return CallRemote(rfGet, "exit_seat")
+					end)
+					HRP.Anchored = false
+					VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+					walkTo(Vector3.new(120.31, Y_POS, 481.83))
+					VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+					runRoute()
+				else
+				CallRemote(ReplicatedStorage.Remotes.Send, "request_respawn")
+				end
+				lookingForRespawn = false
+			end)
+			diedMonitor:Disconnect()
+		end
 	end)
 end
 
@@ -416,6 +444,10 @@ local function watchPotForDone()
 	if not gui then return end
 	local label = gui:FindFirstChild("TextLabel")
 	if not label or not label:IsA("TextLabel") then return end
+	
+	if label.Text == "Done" and running then
+		task.spawn(runRoute)
+	end
 
 	if potWatcher then potWatcher:Disconnect() end
 	potWatcher = label:GetPropertyChangedSignal("Text"):Connect(function()
