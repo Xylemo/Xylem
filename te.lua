@@ -1,5 +1,3 @@
--- LocalScript (StarterPlayerScripts)
-
 -- ===================== CONFIG =====================
 local Y_POS = 257
 
@@ -34,8 +32,8 @@ local ToSafe = {
 	Vector3.new(120.68, Y_POS, 461.03)
 }
 
-local DIST_ARRIVE   = 0.5
-local FLIGHT_SPEED  = 50
+local DIST_ARRIVE = 0.5
+local FLIGHT_SPEED = 50
 
 -- ==================================================
 local running = false
@@ -145,7 +143,7 @@ local function inVehicle()
 end
 
 -- === Cooldown check ===
-local function waitForVehicle(blocking)
+local function waitForVehicle()
 	local nextSpawn = Player:GetAttribute("SpawnVehicleNext")
 	if not nextSpawn then
 		print("⚠️ No cooldown attribute found.")
@@ -156,11 +154,8 @@ local function waitForVehicle(blocking)
 	local remaining = nextSpawn - now
 
 	if remaining > 0 then
-		print(("⏳ Vehicle cooldown: %d seconds left"):format(remaining))
-		if blocking then
-			task.wait(remaining)
-			print("✅ Cooldown finished, you can spawn now.")
-		end
+		task.wait(remaining)
+		print("✅ Cooldown finished, you can spawn now.")
 	else
 		print("✅ Already off cooldown, you can spawn now.")
 	end
@@ -190,6 +185,13 @@ end
 local function flyTo(targetPos: Vector3)
 	local arrived = false
 	cancelFlight = false
+	
+	while not inVehicle() and not cancelFlight do
+		print("Not in vehicle, trying to spawn and enter...")
+		spawnAndEnter()
+		task.wait(0.1)
+	end
+	
 
 	local conn
 	conn = RunService.Heartbeat:Connect(function(dt)
@@ -241,7 +243,7 @@ local function SetCharacter(char)
 			SetCharacter(Player.Character)
 			print("✅ Respawn detected, restarting route.")
 
-			waitForVehicle(true)
+			waitForVehicle()
 
 			for _, wp in ipairs(RespawnOne) do
 				flyTo(wp)
@@ -341,24 +343,13 @@ local function buyFarm(amount)
 end
 
 local function Despawn()
-	local playerGui = Player:FindFirstChild("PlayerGui")
-	local itemsGui = playerGui:FindFirstChild("Items")
-	local holder = itemsGui:FindFirstChild("ItemsHolder")
-	local scrollFrame = holder:FindFirstChild("ItemsScrollingFrame")
-	for _, child in ipairs(scrollFrame:GetChildren()) do
-		local itemName = child:FindFirstChild("ItemName")
-		if itemName and itemName:IsA("TextLabel") and itemName.Text == "BMX" then
-			if playerGui.ItemInfoGui.ItemInfoHolder.PromptButtons.EquipItemButton.TextLabel.Text == "Despawn" then
-				local vehicle = findGuidByItemName("BMX")
-				CallRemote(rfGet, "toggle_equip_item", vehicle)
-			end
-		end
-	end
+	local vehicle = findGuidByItemName("BMX")
+	CallRemote(rfGet, "toggle_equip_item", vehicle)
 end
 
 -- === Route ===
 runRoute = function()
-	waitForVehicle(true)
+	waitForVehicle()
 
 	Despawn()
 	task.wait(0.1)
