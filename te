@@ -1,0 +1,141 @@
+-- LocalScript (StarterPlayerScripts)
+
+-- ===================== CONFIG =====================
+local Y_POS = 257
+
+
+local RespawnOne = {
+	Vector3.new(-449.31, Y_POS, 290.23),
+	Vector3.new(-262.46, Y_POS, 299.86),
+	Vector3.new(-70.29, Y_POS, 313.01),
+	Vector3.new(63.97, Y_POS, 449.49),
+	Vector3.new(116.80, Y_POS, 452.92)
+}
+
+local ToBuy = {
+	Vector3.new(112.38, Y_POS, 443.16),
+	Vector3.new(-113.96, Y_POS, 299.66),
+	Vector3.new(-221.33, Y_POS, 299.70),
+	Vector3.new(-220.63, Y_POS, 189.18),
+	Vector3.new(-129.87, Y_POS, 188.57),
+	Vector3.new(-135.59, Y_POS, 157.38)
+}
+
+local ToFarm = {
+	Vector3.new(-130.53, Y_POS, 189.29),
+	Vector3.new(-220.83, Y_POS, 188.63),
+	Vector3.new(-221.41, Y_POS, 298.65),
+	Vector3.new(-94.18, Y_POS, 303.08),
+	Vector3.new(172.26, Y_POS, 438.21),
+	Vector3.new(173.26, Y_POS, 533.32)
+}
+
+local ToSafe = {
+	Vector3.new(172.17, Y_POS, 459.82),
+	Vector3.new(120.68, Y_POS, 461.03)
+}
+
+local DIST_ARRIVE   = 0.5
+local FLIGHT_SPEED  = 50
+
+-- ==================================================
+running = false
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Vehicles = workspace:FindFirstChild("Vehicles")
+
+local Player = Players.LocalPlayer
+local Character, HRP, Humanoid
+local diedMonitor
+local lookingForRespawn = false
+local cancelFlight = false
+local watchPotForDone
+local debugMode = true
+
+local lastVehicleSpawn = 0
+local VEHICLE_COOLDOWN = 300
+
+
+
+-- Remotes
+local rfGet = ReplicatedStorage:FindFirstChild("Get", true)
+local reSend = (ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Send"))
+             or ReplicatedStorage:FindFirstChild("Send", true)
+
+if not (rfGet and rfGet:IsA("RemoteFunction")) then warn("RemoteFunction 'Get' not found."); return end
+if not (reSend and reSend:IsA("RemoteEvent")) then warn("RemoteEvent 'Send' not found."); return end
+
+-- Optional counter table (if your env provides it); otherwise we just call directly
+local CounterTable = (function()
+	for _, Obj in getgc and getgc(true) or {} do
+		if typeof(Obj) == "table" and rawget(Obj, "event") and rawget(Obj, "func") then
+			return Obj
+		end
+	end
+end)()
+
+-- wrapper that uses CounterTable and RETURNS results for RemoteFunction
+local function CallRemote(remote, ...)
+	if not remote or typeof(remote) ~= "Instance" then return nil end
+
+	if remote.ClassName == "RemoteEvent" then
+		if CounterTable and type(CounterTable.event) == "number" then
+			CounterTable.event += 1
+			return remote:FireServer(CounterTable.event, ...)
+		else
+			return remote:FireServer(...)
+		end
+	elseif remote.ClassName == "RemoteFunction" then
+		if CounterTable and type(CounterTable.func) == "number" then
+			CounterTable.func += 1
+			return remote:InvokeServer(CounterTable.func, ...)
+		else
+			return remote:InvokeServer(...)
+		end
+	end
+end
+
+local function findGuidByItemName(string)
+	local pg = Player:FindFirstChild("PlayerGui")
+	local inventoryUI = pg:FindFirstChild("Items"):FindFirstChild("ItemsHolder"):FindFirstChild("ItemsScrollingFrame")
+
+	for _, child in ipairs(inventoryUI:GetChildren()) do
+		-- only consider "{...}"-style names
+			local itemName = child:FindFirstChild("ItemName")
+			if itemName and itemName:IsA("TextLabel") then
+				if itemName.Text == string then
+					return child.Name -- this is the GUID string "{...}"
+				end
+			end
+	end
+	return nil
+end
+
+
+local function inVehicle()
+	local humanoid = Character:WaitForChild("Humanoid")
+	for _, d in ipairs(Vehicles:GetDescendants()) do
+		if d:IsA("VehicleSeat") and d.Occupant == humanoid then
+		return true
+		end
+	end
+	return false
+end
+
+
+
+
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.G then
+		print("Route running:", running)
+		local vehicle = findGuidByItemName("BMX")
+		CallRemote(rfGet, "toggle_equip_item", vehicle)
+	end
+end)
