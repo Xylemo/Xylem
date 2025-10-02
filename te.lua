@@ -55,7 +55,7 @@ local diedMonitor
 local lookingForRespawn = false
 local cancelFlight = false
 local runRoute
-local debugMode = true 
+local debugMode = false 
 
 -- Remotes
 local rfGet = ReplicatedStorage:FindFirstChild("Get", true)
