@@ -334,7 +334,7 @@ local function startFarming()
 			CallRemote(rfGet, "toggle_equip_item", regularSoil)
 		end
 
-		task.wait(0.01)
+		task.wait(0.05)
 
 		equipTool("RegularSoil")
 		local soil = Player.Character:FindFirstChild("RegularSoil")
@@ -345,7 +345,7 @@ local function startFarming()
 			CallRemote(rfGet, "toggle_equip_item", sunflowerSeeds)
 		end
 
-		task.wait(0.01)
+		task.wait(0.05)
 
 		equipTool("SunflowerSeeds")
 		local seeds = Player.Character:FindFirstChild("SunflowerSeeds")
@@ -462,7 +462,7 @@ end
 -- === Keybind ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.G then
+	if input.KeyCode == Enum.KeyCode.H then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
