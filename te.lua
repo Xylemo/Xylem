@@ -465,6 +465,8 @@ local function watchPotForDone()
 	
 	if label.Text == "Done" and running then
 		task.spawn(runRoute)
+	else if running then
+		task.spawn(runRoute)
 	end
 
 	if potWatcher then potWatcher:Disconnect() end
@@ -480,7 +482,7 @@ end
 -- === Keybind ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.G then
+	if input.KeyCode == Enum.KeyCode.H then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
