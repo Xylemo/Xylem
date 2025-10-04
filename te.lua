@@ -366,7 +366,7 @@ local function startFarming()
 end
 
 local function buyFarm(amount)
-	local Hardware = workspace:FindFirstChild("ShopZone_Hardware")
+	local Hardware = workspace:WaitForChild("ShopZone_Hardware")
 	for i = 1, amount do
 		local ok1, res1 = pcall(function()
 			return CallRemote(rfGet, "purchase_consumable", Hardware, "SunflowerSeeds")
@@ -379,6 +379,7 @@ local function buyFarm(amount)
 		if not ok2 then warn("Failed to buy soil:", res2) end
 	end
 end
+
 
 local function Despawn()
 	local vehicle = findGuidByItemName("BMX")
