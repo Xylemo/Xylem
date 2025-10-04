@@ -203,7 +203,7 @@ local function flyTo(targetPos: Vector3)
 
 		local cur = HRP.Position
 		local d = (targetPos - cur).Magnitude
-		if d <= DIST_ARRIVE and not running then
+		if d <= DIST_ARRIVE then
 			HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 			if conn then conn:Disconnect() end
 			arrived = true
