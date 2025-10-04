@@ -23,12 +23,12 @@ local ToFarm = {
 	Vector3.new(-220.83, Y_POS, 188.63),
 	Vector3.new(-221.41, Y_POS, 298.65),
 	Vector3.new(-94.18, Y_POS, 303.08),
-	Vector3.new(172.26, Y_POS, 438.21),
-	Vector3.new(173.26, Y_POS, 533.32)
+	Vector3.new(172, Y_POS, 438.21),
+	Vector3.new(172, Y_POS, 533.32)
 }
 
 local ToSafe = {
-	Vector3.new(172.17, Y_POS, 459.82),
+	Vector3.new(172, Y_POS, 459.82),
 	Vector3.new(120.68, Y_POS, 461.03)
 }
 
@@ -203,7 +203,7 @@ local function flyTo(targetPos: Vector3)
 
 		local cur = HRP.Position
 		local d = (targetPos - cur).Magnitude
-		if d <= DIST_ARRIVE and running then
+		if d <= DIST_ARRIVE and not running then
 			HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 			if conn then conn:Disconnect() end
 			arrived = true
@@ -326,7 +326,7 @@ local function startFarming()
 
 		HRP.Anchored = false
 		
-		flyTo(Vector3.new(173.26, Y_POS, pot.PotPlaceholder.Position.Z))
+		flyTo(Vector3.new(172, Y_POS, pot.PotPlaceholder.Position.Z))
 		
 		HRP.Anchored = true
 		local ok3, res3 = pcall(function()
