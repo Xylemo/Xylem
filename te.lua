@@ -185,51 +185,43 @@ end
 
 local function flyTo(targetPos: Vector3)
 	local arrived = false
-	cancelFlight = false  -- reset on every call
-
-	-- Keep attempting to spawn and enter a vehicle until successful
+	cancelFlight = false
+	
 	while not inVehicle() and not cancelFlight do
 		print("Not in vehicle, trying to spawn and enter...")
 		spawnAndEnter()
 		task.wait(0.1)
 	end
+	
 
-	-- Exit early if cancelled before entering vehicle
-	if cancelFlight then return end
-
-	-- Start flying
 	local conn
 	conn = RunService.Heartbeat:Connect(function(dt)
 		if not HRP or cancelFlight then
 			if conn then conn:Disconnect() end
-			arrived = false
 			return
 		end
+
 		local cur = HRP.Position
 		local d = (targetPos - cur).Magnitude
 		if d <= DIST_ARRIVE then
-			HRP.Velocity = Vector3.zero
-			HRP.RotVelocity = Vector3.zero
+			HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 			if conn then conn:Disconnect() end
 			arrived = true
 			return
 		end
+
 		local dir = (targetPos - cur).Unit
 		HRP.Velocity = dir * FLIGHT_SPEED
 		HRP.RotVelocity = Vector3.zero
 		HRP.CFrame = HRP.CFrame:Lerp(CFrame.lookAt(cur, cur + dir), math.clamp(dt * 5, 0, 1))
 	end)
-	-- Wait until flight finishes or is cancelled
+
 	while not arrived and not cancelFlight do
 		task.wait()
 	end
-	-- Stop movement when interrupted
-	if cancelFlight then
-		if HRP then
-			HRP.Velocity = Vector3.zero
-			HRP.RotVelocity = Vector3.zero
-		end
-	end
+
+	if cancelFlight and conn then conn:Disconnect() end
+	HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 end
 
 -- === Respawn logic with Humanoid.Died ===
@@ -464,10 +456,6 @@ local function watchPotForDone()
 	if not label or not label:IsA("TextLabel") then return end
 	
 	if label.Text == "Done" and running then
-		task.spawn(runRoute)
-	end
-	
-	if running then
 		task.spawn(runRoute)
 	end
 
