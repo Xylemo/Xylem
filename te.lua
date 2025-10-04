@@ -476,7 +476,7 @@ end
 -- === Keybind ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.J then
+	if input.KeyCode == Enum.KeyCode.G then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
