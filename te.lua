@@ -465,7 +465,9 @@ local function watchPotForDone()
 	
 	if label.Text == "Done" and running then
 		task.spawn(runRoute)
-	elseif running then
+	end
+	
+	if running then
 		task.spawn(runRoute)
 	end
 
