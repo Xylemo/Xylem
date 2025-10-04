@@ -203,7 +203,7 @@ local function flyTo(targetPos: Vector3)
 
 		local cur = HRP.Position
 		local d = (targetPos - cur).Magnitude
-		if d <= DIST_ARRIVE then
+		if d <= DIST_ARRIVE and running then
 			HRP.Velocity, HRP.RotVelocity = Vector3.zero, Vector3.zero
 			if conn then conn:Disconnect() end
 			arrived = true
@@ -323,34 +323,44 @@ end
 local function startFarming()
 	local pots = FindPots()
 	for _, pot in ipairs(pots) do
+
 		HRP.Anchored = false
+		
 		flyTo(Vector3.new(173.26, Y_POS, pot.PotPlaceholder.Position.Z))
+		
 		HRP.Anchored = true
-
-		pcall(function() return CallRemote(reSend, "harvest", pot) end)
-
-		if (not Player.Character:FindFirstChild("RegularSoil") and not Player.Backpack:FindFirstChild("RegularSoil")) then
+		local ok3, res3 = pcall(function()
+			return CallRemote(reSend, "harvest", pot)
+		end)
+	
+		print(pot)
+		local backpack = Player:WaitForChild("Backpack")
+		local Character = Player.Character or Player.CharacterAdded:Wait()
+		
+		
+		if (not Player.Character:FindFirstChild("RegularSoil") and not backpack:FindFirstChild("RegularSoil")) then
 			local regularSoil = findGuidByItemName("RegularSoil")
 			CallRemote(rfGet, "toggle_equip_item", regularSoil)
+			print("Need Soil")
 		end
-
-		task.wait(0.05)
-
+		
+		wait(0.01)
+		
 		equipTool("RegularSoil")
 		local soil = Player.Character:FindFirstChild("RegularSoil")
 		CallRemote(reSend, "add_to_pot", "soil", pot, soil)
-
-		if (not Player.Character:FindFirstChild("SunflowerSeeds") and not Player.Backpack:FindFirstChild("SunflowerSeeds")) then
+		
+		if (not Player.Character:FindFirstChild("SunflowerSeeds") and not backpack:FindFirstChild("SunflowerSeeds")) then
 			local sunflowerSeeds = findGuidByItemName("SunflowerSeeds")
 			CallRemote(rfGet, "toggle_equip_item", sunflowerSeeds)
+			print("Need Seed")
 		end
-
-		task.wait(0.05)
-
+		
+		wait(0.01)
 		equipTool("SunflowerSeeds")
 		local seeds = Player.Character:FindFirstChild("SunflowerSeeds")
 		CallRemote(reSend, "add_to_pot", "seed", pot, seeds)
-
+		
 		HRP.Anchored = false
 	end
 end
@@ -462,7 +472,7 @@ end
 -- === Keybind ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == Enum.KeyCode.H then
+	if input.KeyCode == Enum.KeyCode.G then
 		HRP.Anchored = false
 		running = not running
 		print("Route running:", running)
