@@ -931,8 +931,8 @@ function UILibrary.Load(GUITitle)
 				UICorner_8.CornerRadius = UDim.new(0.3, 00)
 				UICorner_8.Parent = SliderBox
 				
-				local CircleSlide = Instance.new("Frame")
-				CircleSlide.Name = "SliderBox"
+                                local CircleSlide = Instance.new("Frame")
+                                CircleSlide.Name = "CircleSlide"
 				CircleSlide.BackgroundColor3 = Color3.fromRGB(17, 18, 19)
 				CircleSlide.BorderSizePixel = 0
 				CircleSlide.Parent = Slider
@@ -959,7 +959,7 @@ function UILibrary.Load(GUITitle)
 				SliderNumber.BackgroundTransparency = 1
 				SliderNumber.TextColor3 = Color3.fromRGB(190, 195, 199)
 				SliderNumber.TextSize = 13
-				SliderNumber.TextXAlignment = "Center"
+                                SliderNumber.TextXAlignment = Enum.TextXAlignment.Center
 				SliderNumber.Font = Enum.Font.SourceSansSemibold
 				SliderNumber.Text = tostring(Default)
 				SliderNumber.ZIndex = 3
