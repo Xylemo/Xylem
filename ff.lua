@@ -193,7 +193,7 @@ RunService.RenderStepped:Connect(function()
 				if not inside then
 					inside = true
 					mouse1click()
-					print(("[CLICK] %s entered %.0f-stud zone (%.1f studs)")
+					print("[CLICK] %s entered %.0f-stud zone (%.1f studs)")
 				end
 			else
 				if inside and rearmOnLeave then
