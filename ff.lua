@@ -1,53 +1,55 @@
--- LocalScript → StarterPlayer → StarterPlayerScripts
--- Z toggles follow of "ForeverUnwise" (stay N studs toward Z=0).
--- Also watches Workspace.Football: when it ENTERS a radius, click ONCE (no repeats until it leaves and re-enters).
+-- LocalScript → StarterPlayerScripts
+-- Z toggles follow of "ForeverUnwise".
+-- Starts at (X=0, Z=-10). "switch" flips both signs.
+-- Target chat can set offsets:
+--   "10"                -> Z = +10
+--   "-10 5"             -> X = -10, Z = +5
+--   "-10, 5" / "-10 then 5" / "x -10 z 5" -> also parsed
+-- Also watches Workspace.Football and presses 'C' once when ball enters zone.
 
--- ====== Services ======
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
--- ====== Config ======
-local TARGET_NAME = "ForeverUnwise"
-local followEnabled = false
-local followDistance = 10       -- default distance "in front" toward Z=0
-local arriveTolerance = 0.5     -- MoveTo reissue threshold
-
-local FOOTBALL_NAME = "Football"
-local zoneRadius = 20           -- trigger distance for football click
-local rearmOnLeave = true       -- allow another click when it leaves then re-enters
-
--- ====== Local refs ======
 local LOCAL = Players.LocalPlayer
 local character = LOCAL.Character or LOCAL.CharacterAdded:Wait()
 local myHum = character:WaitForChild("Humanoid")
 local myHRP = character:WaitForChild("HumanoidRootPart")
 
--- ====== Helpers ======
+-- ===== FOLLOW CONFIG =====
+local TARGET_NAME = "ForeverUnwise"
+local followEnabled = false
+local arriveTolerance = 0.5
+
+-- World-space offsets from target (X,Z), Y stays at your current height
+local offsetX = -10
+local offsetZ = 5 -- start on negative Z side
+
+-- ===== FOOTBALL CONFIG =====
+local FOOTBALL_NAME = "Football"
+local zoneRadius = 35
+local rearmOnLeave = true
+
+local football
+local inside = false
+
+-- ===== HELPERS =====
 local function getHRP(char) return char and char:FindFirstChild("HumanoidRootPart") end
 local function getHum(char) return char and char:FindFirstChildOfClass("Humanoid") end
 local function getTargetPlayer() return Players:FindFirstChild(TARGET_NAME) end
 
--- Compute point in front along Z toward 0, without crossing 0. Lock X to target; keep our current Y.
-local function computeFrontPos(targetHRP, myHRP, distance)
+local function computeOffsetPos(targetHRP, myHRP)
 	local tpos = targetHRP.Position
-	local z = tpos.Z
-	if z == 0 then
-		return Vector3.new(tpos.X, myHRP.Position.Y, 0)
-	end
-	local dir = (z > 0) and 1 or -1
-	local newZ = z - dir * math.min(distance, math.abs(z))
-	return Vector3.new(tpos.X, myHRP.Position.Y, newZ)
+	return Vector3.new(tpos.X + offsetX, myHRP.Position.Y, tpos.Z + offsetZ)
 end
 
--- ====== FOLLOW LOOP (RenderStepped) ======
+-- ===== FOLLOW LOOP =====
 local followConn
 local function startFollowing()
 	if followConn then followConn:Disconnect() end
 	followConn = RunService.RenderStepped:Connect(function()
 		if not followEnabled then return end
-
 		local target = getTargetPlayer()
 		if not (target and target.Character) then return end
 		local targetHRP = getHRP(target.Character)
@@ -55,11 +57,10 @@ local function startFollowing()
 
 		local char = LOCAL.Character
 		if not char then return end
-		local hum = getHum(char)
-		local hrp = getHRP(char)
+		local hum, hrp = getHum(char), getHRP(char)
 		if not (hum and hrp) then return end
 
-		local goal = computeFrontPos(targetHRP, hrp, followDistance)
+		local goal = computeOffsetPos(targetHRP, hrp)
 		if (hrp.Position - goal).Magnitude > arriveTolerance then
 			hum:MoveTo(goal)
 		end
@@ -80,76 +81,98 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
--- Keep behavior stable across target join/leave
-Players.PlayerAdded:Connect(function(p)
-	if p.Name == TARGET_NAME and followEnabled then
-		startFollowing()
+-- ===== CHAT COMMAND PARSING =====
+local function extractNumbersAny(text)
+	-- returns array of numbers (supports signs/decimals)
+	local nums = {}
+	for num in string.gmatch(text or "", "[-+]?%d+%.?%d*") do
+		local n = tonumber(num)
+		if n then table.insert(nums, n) end
 	end
-end)
-Players.PlayerRemoving:Connect(function(p)
-	if p.Name == TARGET_NAME then
-		stopFollowing()
-	end
-end)
+	return nums
+end
 
--- ====== CHAT LISTENERS: ForeverUnwise can say a number to set distance ======
-local function tryParseDistanceFromText(text)
-	local numStr = string.match(text or "", "[-%d]+")
-	local n = tonumber(numStr)
-	if n and n >= 0 then return n end
+local function parseExplicitXZ(text)
+	-- Parses patterns like "x -10 z 5" in any order; returns x,z or nil
+	local lx = string.lower(text or "")
+	local x = string.match(lx, "x%s*([-+]?%d+%.?%d*)")
+	local z = string.match(lx, "z%s*([-+]?%d+%.?%d*)")
+	if x or z then
+		return tonumber(x), tonumber(z)
+	end
 	return nil
 end
 
-do
-	local ok, TextChatService = pcall(function() return game:GetService("TextChatService") end)
-	if ok and TextChatService then
-		local function handleMessage(message)
-			if not message then return end
-			local src = message.TextSource
-			if not src then return end
-			local sp = Players:GetPlayerByUserId(src.UserId)
-			if not (sp and sp.Name == TARGET_NAME) then return end
-			local dist = tryParseDistanceFromText(message.Text)
-			if dist then followDistance = dist end
-		end
+local function handleMessageFromForever(msgText)
+	if not msgText then return end
+	local lowered = msgText:lower()
 
-		if TextChatService.MessageReceived then
-			TextChatService.MessageReceived:Connect(handleMessage)
-		end
+	-- flip both signs
+	if lowered:find("switch") then
+		offsetX, offsetZ = -offsetX, -offsetZ
+		print(("[FOLLOW] Switched: offsetX=%g, offsetZ=%g"):format(offsetX, offsetZ))
+		return
+	end
 
-		local function connectChannel(ch)
-			if ch and ch:IsA("TextChannel") and ch.MessageReceived then
-				ch.MessageReceived:Connect(handleMessage)
-			end
-		end
-		for _, ch in ipairs(TextChatService:GetChildren()) do connectChannel(ch) end
-		TextChatService.ChildAdded:Connect(connectChannel)
+	-- Try "x -10 z 5" style
+	local exX, exZ = parseExplicitXZ(msgText)
+	if exX or exZ then
+		if exX then offsetX = exX end
+		if exZ then offsetZ = exZ end
+		print(("[FOLLOW] Set explicit offsets: X=%g, Z=%g"):format(offsetX, offsetZ))
+		return
+	end
+
+	-- Try two numbers in order (e.g., "-10 5", "-10, 5", "-10 then 5")
+	local nums = extractNumbersAny(msgText)
+	if #nums >= 2 then
+		offsetX, offsetZ = nums[1], nums[2]
+		print(("[FOLLOW] Set offsets from pair: X=%g, Z=%g"):format(offsetX, offsetZ))
+		return
+	end
+
+	-- Back-compat: single number -> Z offset
+	if #nums == 1 then
+		offsetZ = nums[1]
+		print(("[FOLLOW] Set Z offset: Z=%g (X remains %g)"):format(offsetZ, offsetX))
+		return
 	end
 end
 
-local function hookLegacyChattedFor(player)
-	if player and player.Chatted then
-		player.Chatted:Connect(function(message)
-			if player.Name ~= TARGET_NAME then return end
-			local dist = tryParseDistanceFromText(message)
-			if dist then followDistance = dist end
+-- ===== CHAT LISTENERS =====
+local ok, TextChatService = pcall(function() return game:GetService("TextChatService") end)
+if ok and TextChatService then
+	local function onMsg(m)
+		local src = m.TextSource
+		if not src then return end
+		local sp = Players:GetPlayerByUserId(src.UserId)
+		if sp and sp.Name == TARGET_NAME then
+			handleMessageFromForever(m.Text)
+		end
+	end
+	if TextChatService.MessageReceived then
+		TextChatService.MessageReceived:Connect(onMsg)
+	end
+end
+
+-- Legacy Player.Chatted
+local function hookLegacy(p)
+	if p and p.Chatted then
+		p.Chatted:Connect(function(msg)
+			if p.Name == TARGET_NAME then
+				handleMessageFromForever(msg)
+			end
 		end)
 	end
 end
-do
-	local tp = getTargetPlayer()
-	if tp then hookLegacyChattedFor(tp) end
-	Players.PlayerAdded:Connect(function(p)
-		if p.Name == TARGET_NAME then hookLegacyChattedFor(p) end
-	end)
-end
+local tp = getTargetPlayer()
+if tp then hookLegacy(tp) end
+Players.PlayerAdded:Connect(function(p)
+	if p.Name == TARGET_NAME then hookLegacy(p) end
+end)
 
--- ====== FOOTBALL WATCH (enter radius → one click) ======
-local football -- current reference
-local inside = false
-
+-- ===== FOOTBALL WATCH / CLICK =====
 local function getFootball()
-	-- find Workspace.Football (BasePart or Model with PrimaryPart)
 	local f = Workspace:FindFirstChild(FOOTBALL_NAME)
 	if not f then return nil end
 	if f:IsA("BasePart") then return f end
@@ -165,7 +188,6 @@ local function footballPos()
 	return nil
 end
 
--- If football spawns/destroys, keep reference fresh
 Workspace.ChildAdded:Connect(function(child)
 	if child.Name == FOOTBALL_NAME then
 		football = getFootball()
@@ -182,18 +204,18 @@ end)
 football = getFootball()
 
 RunService.RenderStepped:Connect(function()
-	if not football or not football.Parent then
-		football = getFootball()
-		inside = false
-	else
+	if football and football.Parent then
 		local fpos = footballPos()
 		if fpos and myHRP then
 			local dist = (fpos - myHRP.Position).Magnitude
 			if dist <= zoneRadius then
 				if not inside then
 					inside = true
-					mouse1click()
-					print("[CLICK] %s entered %.0f-stud zone (%.1f studs)")
+					-- NOTE: keypress/keyrelease are executor-provided; keep as-is.
+					keypress(0x43)    -- 'C'
+					task.wait(0.1)
+					keyrelease(0x43)
+					print(("[CLICK] Football entered %.0f-stud zone (%.1f studs)"):format(zoneRadius, dist))
 				end
 			else
 				if inside and rearmOnLeave then
@@ -201,5 +223,8 @@ RunService.RenderStepped:Connect(function()
 				end
 			end
 		end
+	else
+		football = getFootball()
+		inside = false
 	end
 end)
