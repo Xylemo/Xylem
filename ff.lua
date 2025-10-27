@@ -7,6 +7,13 @@
 --   "-10, 5" / "-10 then 5" / "x -10 z 5" -> also parsed
 -- Also watches Workspace.Football and presses 'C' once when ball enters zone.
 
+local bbbatusxxxddddd = game:service'VirtualUser'
+
+game:service'Players'.LocalPlayer.Idled:connect(function()
+	bbbatusxxxddddd:CaptureController()
+	bbbatusxxxddddd:ClickButton2(Vector2.new())
+end)
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
